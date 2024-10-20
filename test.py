@@ -1,0 +1,1 @@
+#python "e:\Coding_file\Python\CNN\train_cnn.py"
