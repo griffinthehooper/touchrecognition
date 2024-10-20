@@ -1,1 +1,1 @@
-#python "e:\Coding_file\Python\CNN\train_cnn.py"
+#python "e:\Coding_file\Python\touchrecognition\touchrecognition\train_cnn.py"
