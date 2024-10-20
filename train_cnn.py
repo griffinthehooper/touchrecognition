@@ -84,8 +84,8 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
-    train_file_path = os.getenv('TRAIN_FILE_PATH', './data/window_data3.csv')
-    validate_file_path = os.getenv('VALIDATE_FILE_PATH', './data/window_data2.csv')
+    train_file_path = os.getenv('TRAIN_FILE_PATH', 'E:/Coding_file/Python/CNN/data/window_data3.csv')
+    validate_file_path = os.getenv('VALIDATE_FILE_PATH', 'E:/Coding_file/Python/CNN/data/window_data2.csv')
 
     train_dataset = SkeletonDataset(train_file_path)
     validate_dataset = SkeletonDataset(validate_file_path)
@@ -111,7 +111,7 @@ def main():
 
     epochs = 100
     best_acc = 0.0
-    save_path = './results/weights/SimpleCNN'
+    save_path = 'E:/Coding_file/Python/CNN/results/weights/SimpleCNN'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
