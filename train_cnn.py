@@ -1,19 +1,17 @@
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 import sys
-import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-import torch.nn.functional as F
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 import seaborn as sns
-from network import VGG19
-from dataloader import SkeletonDataset
+from network import SimplifiedVGG
+from dataloader import SkeletonDataset, get_sampler
 
 def plot_confusion_matrix(y_true, y_pred, classes):
     cm = confusion_matrix(y_true, y_pred)
@@ -35,7 +33,7 @@ def validate(net, validate_loader, loss_function, device):
         for data, labels in validate_loader:
             data, labels = data.to(device), labels.to(device)
             outputs = net(data)
-            labels = labels.unsqueeze(1)  # 将标签从 [32] 调整为 [32, 1]
+            labels = labels.unsqueeze(1)
             loss = loss_function(outputs, labels)
             epoch_val_losses.append(loss.item())
             
@@ -47,8 +45,11 @@ def validate(net, validate_loader, loss_function, device):
     
     val_loss_avg = sum(epoch_val_losses) / len(validate_loader)
     val_acc = acc_num.item() / len(validate_loader.dataset)
-    return val_loss_avg, val_acc, all_preds, all_labels
-
+    f1 = f1_score(all_labels, all_preds)
+    precision = precision_score(all_labels, all_preds)
+    recall = recall_score(all_labels, all_preds)
+    
+    return val_loss_avg, val_acc, all_preds, all_labels, f1, precision, recall
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -64,16 +65,18 @@ def main():
     print(f"Sample data shape: {sample_data.shape}")
     print(f"Sample label shape: {sample_label.shape}")
 
-    net = VGG19().to(device)
+    net = SimplifiedVGG().to(device)
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    sampler, class_counts = get_sampler(train_dataset)
+    train_loader = DataLoader(train_dataset, batch_size=32, sampler=sampler)
     validate_loader = DataLoader(validate_dataset, batch_size=32, shuffle=False)
 
     print(f"using {len(train_dataset)} samples for training, {len(validate_dataset)} samples for validation.")
 
-    loss_function = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(net.parameters(), lr=0.0001)
-    scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
+    pos_weight = torch.tensor([class_counts[0] / class_counts[1]]).to(device)
+    loss_function = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    optimizer = optim.Adam(net.parameters(), lr=0.0001, weight_decay=1e-5)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5, verbose=True)
 
     epochs = 100
     best_acc = 0.0
@@ -94,7 +97,7 @@ def main():
         for data, labels in train_bar:
             data, labels = data.to(device), labels.to(device)
             outputs = net(data)
-            labels = labels.unsqueeze(1)  # 将标签从 [32] 调整为 [32, 1]
+            labels = labels.unsqueeze(1)
             loss = loss_function(outputs, labels)
             optimizer.zero_grad()
             loss.backward()
@@ -105,14 +108,13 @@ def main():
             acc_num += torch.sum(preds == labels)
             train_bar.desc = "train epoch[{}/{}] loss:{:.3f}".format(epoch + 1, epochs, loss)
 
-
         train_acc = acc_num.item() / len(train_dataset)
         train_loss_avg = train_loss / len(train_loader)
         train_losses.append(train_loss_avg)
         train_accuracies.append(train_acc)
         print(f'[epoch {epoch + 1}] train_loss: {train_loss_avg:.3f}  train_acc: {train_acc:.3f}')
     
-        val_loss_avg, val_acc, epoch_preds, epoch_labels = validate(net, validate_loader, loss_function, device)
+        val_loss_avg, val_acc, epoch_preds, epoch_labels, f1, precision, recall = validate(net, validate_loader, loss_function, device)
 
         all_preds.extend(epoch_preds)
         all_labels.extend(epoch_labels)
@@ -120,6 +122,7 @@ def main():
         val_losses.append(val_loss_avg)
         val_accuracies.append(val_acc)
         print(f'[epoch {epoch + 1}] val_loss: {val_loss_avg:.3f}  val_accuracy: {val_acc:.3f}')
+        print(f'F1: {f1:.3f}  Precision: {precision:.3f}  Recall: {recall:.3f}')
         
         scheduler.step(val_loss_avg)
 

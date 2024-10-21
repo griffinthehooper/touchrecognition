@@ -2,7 +2,8 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, WeightedRandomSampler
+import random
 
 class SkeletonDataset(Dataset):
     def __init__(self, file_path):
@@ -15,30 +16,23 @@ class SkeletonDataset(Dataset):
         data = []
         labels = []
         
-        # 确保总行数是5的倍数
         total_rows = (len(df) // 5) * 5
         df = df.iloc[:total_rows]
         
         for i in range(0, total_rows, 5):
             label = 1 if 1 in df.iloc[i:i+5, 0].values else 0
-            sample = df.iloc[i:i+5, 1:].values  # 获取5行坐标数据，忽略第一列（标签）
-
-            # 将数据reshape为 (5帧, 21关节点, 2坐标)，其中最后一维是x和y坐标
+            sample = df.iloc[i:i+5, 1:].values
             sample = sample.reshape(5, 21, 2)
-            
-            # 将维度重新排列为 (2通道, 21关节点, 5帧)
             sample = sample.transpose(2, 1, 0)
             
             data.append(sample)
             labels.append(label)
         
-        # 转换为numpy array，然后转换为torch tensor
         data = np.array(data)
         labels = np.array(labels)
         
-        # 转换为torch tensor，并确保类型正确
-        data = torch.from_numpy(data).float()  # (num_samples, 2, 21, 5)
-        labels = torch.from_numpy(labels).float()  # 标签
+        data = torch.from_numpy(data).float()
+        labels = torch.from_numpy(labels).float()
 
         return data, labels
     
@@ -46,4 +40,18 @@ class SkeletonDataset(Dataset):
         return len(self.labels)
     
     def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
+        data, label = self.data[idx], self.labels[idx]
+        
+        # Simple data augmentation: randomly flip x coordinates
+        if random.random() > 0.5:
+            data[0, :, :] = 1 - data[0, :, :]  # Assuming x coordinates are normalized to [0,1]
+        
+        return data, label
+
+def get_sampler(dataset):
+    labels = [int(label.item()) for label in dataset.labels]
+    class_counts = torch.bincount(torch.tensor(labels))
+    class_weights = 1. / class_counts.float()
+    sample_weights = [class_weights[label] for label in labels]
+    sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
+    return sampler, class_counts
