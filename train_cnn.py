@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 import seaborn as sns
-from network import SimplifiedVGG
+from network import VGG16
 from dataloader import SkeletonDataset, get_sampler
 
 def plot_confusion_matrix(y_true, y_pred, classes):
@@ -65,17 +65,17 @@ def main():
     print(f"Sample data shape: {sample_data.shape}")
     print(f"Sample label shape: {sample_label.shape}")
 
-    net = SimplifiedVGG().to(device)
+    net = VGG16().to(device)
 
     sampler, class_counts = get_sampler(train_dataset)
-    train_loader = DataLoader(train_dataset, batch_size=32, sampler=sampler)
-    validate_loader = DataLoader(validate_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=16, sampler=sampler)
+    validate_loader = DataLoader(validate_dataset, batch_size=16, shuffle=False)
 
     print(f"using {len(train_dataset)} samples for training, {len(validate_dataset)} samples for validation.")
 
     pos_weight = torch.tensor([class_counts[0] / class_counts[1]]).to(device)
     loss_function = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    optimizer = optim.Adam(net.parameters(), lr=0.0001, weight_decay=1e-5)
+    optimizer = optim.Adam(net.parameters(), lr=0.00001, weight_decay=1e-5)  
     scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5, verbose=True)
 
     epochs = 100
@@ -85,7 +85,7 @@ def main():
         os.makedirs(save_path)
 
     train_losses, train_accuracies, val_accuracies, val_losses = [], [], [], []
-    patience, no_improve_epochs = 10, 0
+    patience, no_improve_epochs = 20, 0
     all_preds, all_labels = [], []
 
     for epoch in range(epochs):
