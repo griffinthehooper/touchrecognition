@@ -13,41 +13,7 @@ import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 from network import VGG19
-
-
-
-class SimpleCNN(nn.Module):
-    def __init__(self, input_size):
-        super(SimpleCNN, self).__init__()
-        self.fc1 = nn.Linear(input_size, 64)
-        self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, 1)
-        self.dropout = nn.Dropout(0.5)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.fc3(x)
-        return x
-
-class SkeletonDataset(Dataset):
-    def __init__(self, file_path):
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Data file not found: {file_path}")
-        self.data = pd.read_csv(file_path, header=None)
-        print(f"Data shape: {self.data.shape}")
-        print(f"Number of features: {self.data.shape[1] - 1}")
-    
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, idx):
-        row = self.data.iloc[idx]
-        label = torch.tensor(row[0], dtype=torch.float)
-        features = torch.tensor(row[1:].values, dtype=torch.float)
-        return features, label
+from dataloader import SkeletonDataset
 
 def plot_confusion_matrix(y_true, y_pred, classes):
     cm = confusion_matrix(y_true, y_pred)
@@ -69,26 +35,27 @@ def validate(net, validate_loader, loss_function, device):
         for data, labels in validate_loader:
             data, labels = data.to(device), labels.to(device)
             outputs = net(data)
-            loss = loss_function(outputs, labels.unsqueeze(1))
+            labels = labels.unsqueeze(1)  # 将标签从 [32] 调整为 [32, 1]
+            loss = loss_function(outputs, labels)
             epoch_val_losses.append(loss.item())
             
             preds = (torch.sigmoid(outputs) > 0.5).float()
-            acc_num += torch.sum(preds == labels.unsqueeze(1).float())
+            acc_num += torch.sum(preds == labels)
             
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
     
     val_loss_avg = sum(epoch_val_losses) / len(validate_loader)
     val_acc = acc_num.item() / len(validate_loader.dataset)
-    
     return val_loss_avg, val_acc, all_preds, all_labels
+
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
-    train_file_path = os.getenv('TRAIN_FILE_PATH', 'E:/Coding_file/Python/CNN/data/output2.csv')
-    validate_file_path = os.getenv('VALIDATE_FILE_PATH', 'E:/Coding_file/Python/CNN/data/output.csv')
+    train_file_path = 'E:/Coding_file/Python/CNN/data/output2.csv'
+    validate_file_path = 'E:/Coding_file/Python/CNN/data/output.csv'
 
     train_dataset = SkeletonDataset(train_file_path)
     validate_dataset = SkeletonDataset(validate_file_path)
@@ -97,14 +64,10 @@ def main():
     print(f"Sample data shape: {sample_data.shape}")
     print(f"Sample label shape: {sample_label.shape}")
 
-    input_size = sample_data.shape[0]
     net = VGG19().to(device)
-    
-    from torchsummary import summary
-    summary(net, (input_size,))
 
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-    validate_loader = DataLoader(validate_dataset, batch_size=16, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    validate_loader = DataLoader(validate_dataset, batch_size=32, shuffle=False)
 
     print(f"using {len(train_dataset)} samples for training, {len(validate_dataset)} samples for validation.")
 
@@ -112,15 +75,15 @@ def main():
     optimizer = optim.Adam(net.parameters(), lr=0.0001)
     scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
 
-    epochs = 200
+    epochs = 100
     best_acc = 0.0
-    save_path = 'E:/Coding_file/Python/CNN/results/weights/SimpleCNN'
+    save_path = './results/weights/VGGSkeleton'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
     train_losses, train_accuracies, val_accuracies, val_losses = [], [], [], []
     patience, no_improve_epochs = 10, 0
-    all_preds, all_labels = [], []  # 用于存储所有的预测和标签
+    all_preds, all_labels = [], []
 
     for epoch in range(epochs):
         net.train()
@@ -131,25 +94,26 @@ def main():
         for data, labels in train_bar:
             data, labels = data.to(device), labels.to(device)
             outputs = net(data)
-            loss = loss_function(outputs, labels.unsqueeze(1))
+            labels = labels.unsqueeze(1)  # 将标签从 [32] 调整为 [32, 1]
+            loss = loss_function(outputs, labels)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             train_loss += loss.item()
             preds = (torch.sigmoid(outputs) > 0.5).float()
-            acc_num += torch.sum(preds == labels.unsqueeze(1).float())
+            acc_num += torch.sum(preds == labels)
             train_bar.desc = "train epoch[{}/{}] loss:{:.3f}".format(epoch + 1, epochs, loss)
+
 
         train_acc = acc_num.item() / len(train_dataset)
         train_loss_avg = train_loss / len(train_loader)
         train_losses.append(train_loss_avg)
         train_accuracies.append(train_acc)
         print(f'[epoch {epoch + 1}] train_loss: {train_loss_avg:.3f}  train_acc: {train_acc:.3f}')
-
+    
         val_loss_avg, val_acc, epoch_preds, epoch_labels = validate(net, validate_loader, loss_function, device)
-        
-        # 收集每个epoch的预测和标签
+
         all_preds.extend(epoch_preds)
         all_labels.extend(epoch_labels)
 
@@ -161,7 +125,7 @@ def main():
 
         if val_acc > best_acc:
             best_acc = val_acc
-            torch.save(net.state_dict(), os.path.join(save_path, "SimpleCNN.pth"))
+            torch.save(net.state_dict(), os.path.join(save_path, "VGGSkeleton.pth"))
             no_improve_epochs = 0
         else:
             no_improve_epochs += 1
@@ -172,10 +136,8 @@ def main():
 
     print('Finished Training')
 
-    # 训练结束后绘制混淆矩阵
     plot_confusion_matrix(all_labels, all_preds, classes=['0', '1'])
     
-    # 计算并打印最终的每个类别准确率
     cm = confusion_matrix(all_labels, all_preds)
     class_0_accuracy = cm[0,0] / (cm[0,0] + cm[0,1])
     class_1_accuracy = cm[1,1] / (cm[1,0] + cm[1,1])
@@ -201,7 +163,7 @@ def main():
     plt.title('Training and Validation Accuracy')
     plt.legend()
 
-    plot_save_path = os.getenv('PLOT_SAVE_PATH', './results/plots')
+    plot_save_path = './results/plots'
     if not os.path.exists(plot_save_path):
         os.makedirs(plot_save_path)
     plt.savefig(os.path.join(plot_save_path, 'training_metrics.png'))
