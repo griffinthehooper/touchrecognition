@@ -12,6 +12,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
+from network import VGG19
+
+
 
 class SimpleCNN(nn.Module):
     def __init__(self, input_size):
@@ -95,21 +98,21 @@ def main():
     print(f"Sample label shape: {sample_label.shape}")
 
     input_size = sample_data.shape[0]
-    net = SimpleCNN(input_size).to(device)
+    net = VGG19().to(device)
     
     from torchsummary import summary
     summary(net, (input_size,))
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    validate_loader = DataLoader(validate_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+    validate_loader = DataLoader(validate_dataset, batch_size=16, shuffle=False)
 
     print(f"using {len(train_dataset)} samples for training, {len(validate_dataset)} samples for validation.")
 
     loss_function = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(net.parameters(), lr=0.001)
+    optimizer = optim.Adam(net.parameters(), lr=0.0001)
     scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
 
-    epochs = 100
+    epochs = 200
     best_acc = 0.0
     save_path = 'E:/Coding_file/Python/CNN/results/weights/SimpleCNN'
     if not os.path.exists(save_path):
