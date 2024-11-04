@@ -1,0 +1,67 @@
+import torch
+import torch.nn as nn
+
+class SkeletonLSTM(nn.Module):
+    def __init__(self, input_channels=2, num_joints=21, hidden_size=128, num_layers=2, num_classes=1):
+        super(SkeletonLSTM, self).__init__()
+        
+        self.input_channels = input_channels
+        self.num_joints = num_joints
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # 空间特征提取
+        self.spatial_features = nn.Sequential(
+            nn.Linear(input_channels * num_joints, 256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.5)
+        )
+        
+        # LSTM层
+        self.lstm = nn.LSTM(
+            input_size=128,  # 空间特征的输出大小
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=0.5,
+            bidirectional=True
+        )
+        
+        # 分类层
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size * 2, 64),  # *2是因为双向LSTM
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(64, num_classes)
+        )
+
+    def forward(self, x):
+        # 输入x的形状: (batch_size, channels, joints, frames)
+        batch_size = x.size(0)
+        
+        # 重新排列维度，准备进行空间特征提取
+        # (batch_size, frames, channels * joints)
+        x = x.permute(0, 3, 1, 2)
+        x = x.reshape(batch_size, 5, -1)
+        
+        # 对每个时间步进行空间特征提取
+        spatial_out = []
+        for t in range(x.size(1)):
+            spatial_features = self.spatial_features(x[:, t, :])
+            spatial_out.append(spatial_features)
+        
+        # 堆叠所有时间步的空间特征
+        x = torch.stack(spatial_out, dim=1)  # (batch_size, frames, 128)
+        
+        # LSTM处理
+        lstm_out, _ = self.lstm(x)
+        
+        # 获取最后一个时间步的输出
+        lstm_out = lstm_out[:, -1, :]
+        
+        # 分类
+        out = self.classifier(lstm_out)
+        return out
