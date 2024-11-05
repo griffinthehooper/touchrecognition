@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 import seaborn as sns
 from lstm import SkeletonLSTM
-from dataloader import SkeletonDataset
+from dataloader2 import SkeletonDataset
 
 def plot_confusion_matrix(y_true, y_pred, classes, save_path=None):
     cm = confusion_matrix(y_true, y_pred)
@@ -168,9 +168,9 @@ def main():
             no_improve_epochs += 1
 
         # 早停
-        if no_improve_epochs >= patience:
-            print(f"Early stopping triggered after {epoch + 1} epochs")
-            break
+        #if no_improve_epochs >= patience:
+        #    print(f"Early stopping triggered after {epoch + 1} epochs")
+        #    break
 
     print('Training completed')
 
