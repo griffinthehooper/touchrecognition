@@ -1,0 +1,3 @@
+    # 路径配置
+    train_file_path = 'E:/Coding_file/Python/CNN/data/output2.csv'
+    validate_file_path = 'E:/Coding_file/Python/CNN/data/output.csv'

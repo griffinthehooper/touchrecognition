@@ -60,8 +60,8 @@ def main():
     print(f"Using {device} device")
 
     # 路径配置
-    train_file_path = 'E:/Coding_file/Python/CNN/data/output2.csv'
-    validate_file_path = 'E:/Coding_file/Python/CNN/data/output.csv'
+    train_file_path = 'E:/Coding_file/Python/CNN/data/train_data.csv'
+    validate_file_path = 'E:/Coding_file/Python/CNN/data/val_data.csv'
     results_path = './results'
     weights_path = os.path.join(results_path, 'weights')
     plots_path = os.path.join(results_path, 'plots')
@@ -92,7 +92,7 @@ def main():
     # 损失函数和优化器
     pos_weight = torch.tensor([weights[0]/weights[1]]).to(device)
     loss_function = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    optimizer = optim.AdamW(net.parameters(), lr=0.001, weight_decay=0.01)
+    optimizer = optim.AdamW(net.parameters(), lr=0.001, weight_decay=0.001)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-6)
 
     # 训练参数

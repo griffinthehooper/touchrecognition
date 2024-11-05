@@ -55,8 +55,8 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
-    train_file_path = 'E:/Coding_file/Python/CNN/data/output2.csv'
-    validate_file_path = 'E:/Coding_file/Python/CNN/data/output.csv'
+    train_file_path = 'E:/Coding_file/Python/CNN/data/train_data.csv'
+    validate_file_path = 'E:/Coding_file/Python/CNN/data/val_data.csv'
 
     train_dataset = SkeletonDataset(train_file_path)
     validate_dataset = SkeletonDataset(validate_file_path)
