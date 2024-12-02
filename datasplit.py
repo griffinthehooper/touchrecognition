@@ -102,5 +102,5 @@ def split_sequence_data(input_file, sequence_length=5, train_ratio=0.8, random_s
 
 if __name__ == "__main__":
     # 使用示例
-    input_file = "E:/Coding_file/Python/CNN/data/raw/data1/annotations_output.csv"
+    input_file = "E:/ran/Pictures/Camera Roll/data4/output3.csv"
     train_file, val_file = split_sequence_data(input_file)

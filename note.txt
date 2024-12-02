@@ -1,3 +1,10 @@
     # 路径配置
     train_file_path = 'E:/Coding_file/Python/CNN/data/output2.csv'
     validate_file_path = 'E:/Coding_file/Python/CNN/data/output.csv'
+    
+    
+    #python "e:\Coding_file\Python\touchrecognition\touchrecognition\train_cnn.py"
+
+
+数据集制作顺序：
+1、拍摄点击视频；2、interface获取点击数据集的csv文件-删掉第一列frame和未点击的列；3、用data_annotaion将数据分割

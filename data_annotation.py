@@ -109,8 +109,8 @@ def process_click_data(input_file, output_file):
 
 if __name__ == "__main__":
     # 设置输入输出路径
-    input_file = "E:/Coding_file/Python/CNN/data/raw/data1/annotations.csv"  # 请修改为实际输入文件路径
-    output_file = "E:/Coding_file/Python/CNN/data/raw/data1/annotations_output.csv"  # 请修改为实际输出文件路径
+    input_file = "E:/ran/Pictures/Camera Roll/data4/annotations - 副本.csv"  # 请修改为实际输入文件路径
+    output_file = "E:/ran/Pictures/Camera Roll/data4/output.csv"  # 请修改为实际输出文件路径
     
     process_click_data(input_file, output_file)
 
