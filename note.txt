@@ -8,3 +8,6 @@
 
 数据集制作顺序：
 1、拍摄点击视频；2、interface获取点击数据集的csv文件-删掉第一列frame和未点击的列；3、用data_annotaion将数据分割
+
+
+'No Touch', 'Index Touch', 'Thumb Touch', 'Both Touch'

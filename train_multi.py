@@ -74,24 +74,18 @@ def main():
     train_dataset = SkeletonDataset(train_file_path, normalize=True)
     validate_dataset = SkeletonDataset(validate_file_path, normalize=True)
     
-    # 计算类别数量
+    # 打印类别权重
     train_labels = train_dataset.labels
-    class_counts = torch.bincount(train_labels)
-    print("\nClass distribution:")
-    for i in range(len(class_counts)):
-        print(f"Class {i}: {class_counts[i]} samples")
-
-    # 计算类别权重
-    class_weights = 1. / class_counts.float()
-    class_weights = class_weights / class_weights.sum()
     print("\nClass weights:")
-    for i in range(len(class_weights)):
-        print(f"Class {i}: {class_weights[i]:.4f}")
+    for i in range(4):
+        weight = (train_labels == i).sum().item()
+        print(f"Class {i}: {weight} samples")
     
     # 创建加权采样器处理类别不平衡
-    sample_weights = class_weights[train_labels]
+    class_counts = torch.bincount(train_labels)
+    weights = 1. / class_counts.float()
+    sample_weights = weights[train_labels]
     sampler = WeightedRandomSampler(sample_weights, len(sample_weights))
-
 
     # 数据加载器
     train_loader = DataLoader(train_dataset, batch_size=32, sampler=sampler)
@@ -102,7 +96,7 @@ def main():
 
     # 模型初始化
     model = SkeletonLSTM().to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))  # 使用计算好的类别权重
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.001)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-6)
 
